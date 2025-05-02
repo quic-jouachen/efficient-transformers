@@ -153,10 +153,20 @@ class QEffLlamaAttention(LlamaAttention):
         cos, sin = self.rotary_emb(value_states, seq_len=kv_seq_len)
         query_states, key_states = qeff_apply_rotary_pos_emb(query_states, key_states, cos, sin, position_ids)
 
+        # add hadamard transform
+        from optimized_hadamard_transform import hadamard_transform_q_new, hadamard_transform_k_new
+        import math
+        query_states = hadamard_transform_q_new(query_states.contiguous(), scale=1/math.sqrt(query_states.shape[-1]))
+        key_states = hadamard_transform_k_new(key_states.contiguous(), scale=1/math.sqrt(key_states.shape[-1]))
+        
+        # TODO: quantize to int8 using given scales (k_cache_output_scale, v_cache_output_scale)
+
         if past_key_value is not None:
             # sin and cos are specific to RoPE models; cache_position needed for the static cache
             cache_kwargs = {"sin": sin, "cos": cos, "batch_index": batch_index, "position_ids": position_ids}
             key_states, value_states = past_key_value.update(key_states, value_states, self.layer_idx, cache_kwargs)
+
+        # TODO: dequantize back to fp16 using given scales (k_cache_output_scale, v_cache_output_scale)
 
         attention_interface: Callable = eager_attention_forward
 

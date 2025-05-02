@@ -246,8 +246,16 @@ class QEFFBaseModel(ABC):
                 - aic_num_cores=16 -> -aic-num-cores=16
                 - convert_to_fp16=True -> -convert-to-fp16
         """
-        if onnx_path is None and self.onnx_path is None:
-            self.export()
+        # if onnx_path is None and self.onnx_path is None:
+        #     self.export()
+        self.export()
+
+        import sys, os
+        sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+        from modify_onnx import quantize_model_to_int8 # for accuracy (final onboard version)
+        # from modify_onnx_qlinearmatmul import quantize_model_to_int8 # for performance runs
+        quantize_model_to_int8(self.onnx_path.as_posix())
+        print("************Quantize onnx model to INT8************")
 
         onnx_path = Path(onnx_path or self.onnx_path)
         compile_dir = Path(compile_dir or onnx_path.parent)
